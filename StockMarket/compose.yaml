@@ -1,0 +1,30 @@
+﻿services:
+  exchange-alpha:
+    build:
+      context: .
+      dockerfile: StockMarketImitator/Dockerfile
+    environment:
+      Simulator__ExchangeName: alpha
+      Simulator__Format: Alpha
+    ports:
+      - "5001:8080"
+
+  exchange-beta:
+    build:
+      context: .
+      dockerfile: StockMarketImitator/Dockerfile
+    environment:
+      Simulator__ExchangeName: beta
+      Simulator__Format: Beta
+    ports:
+      - "5002:8080"
+
+  exchange-gamma:
+    build:
+      context: .
+      dockerfile: StockMarketImitator/Dockerfile
+    environment:
+      Simulator__ExchangeName: gamma
+      Simulator__Format: Gamma
+    ports:
+      - "5003:8080"

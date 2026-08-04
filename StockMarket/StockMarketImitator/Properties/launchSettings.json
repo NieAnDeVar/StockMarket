@@ -1,0 +1,31 @@
+{
+  "profiles": {
+    "exchange-alpha": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Simulator__ExchangeName": "alpha",
+        "Simulator__Format": "Alpha"
+      }
+    },
+    "exchange-beta": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5002",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Simulator__ExchangeName": "beta",
+        "Simulator__Format": "Beta"
+      }
+    },
+    "exchange-gamma": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5003",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Simulator__ExchangeName": "gamma",
+        "Simulator__Format": "Gamma"
+      }
+    }
+  }
+}
