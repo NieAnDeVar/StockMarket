@@ -12,6 +12,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddExchangeSimulator(
         this IServiceCollection services, IConfiguration config)
     {
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+
         services.AddOptions<SimulatorOptions>()
             .Bind(config.GetSection(SimulatorOptions.SectionName))
             // Invalid config must fail at startup

@@ -36,6 +36,7 @@ public sealed class BroadcastEngine(
             if (_lastMessage is not null && chaos.ShouldDuplicate())
             {
                 message = _lastMessage; // retransmission: same seq, same payload
+                SimulatorMetrics.DuplicatesSent.Inc();
             }
             else
             {
@@ -44,6 +45,7 @@ public sealed class BroadcastEngine(
             }
 
             Interlocked.Increment(ref _sentTotal);
+            SimulatorMetrics.TicksSent.Inc();
 
             foreach (var session in registry.Snapshot())
                 session.Enqueue(message);

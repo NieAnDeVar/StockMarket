@@ -9,9 +9,9 @@ public sealed class BetaFormatter : IQuoteFormatter
     public string Format(Quote q) => JsonSerializer.Serialize(new
     {
         s = q.Ticker,
-        p = q.Price.ToString(CultureInfo.InvariantCulture),
+        p = q.Price.ToString(CultureInfo.InvariantCulture), // regardless of OS locale
         v = q.Volume,
-        t = q.TimestampUtc.ToUnixTimeMilliseconds(), // regardless of OS locale
+        t = q.TimestampUtc.ToUnixTimeMilliseconds(),
         n = q.Seq
     });
 }

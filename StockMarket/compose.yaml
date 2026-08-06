@@ -28,3 +28,49 @@
       Simulator__Format: Gamma
     ports:
       - "5003:8080"
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: marketdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketdata"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: StockAggregator/Dockerfile
+    environment:
+      Aggregator__ConnectionString: Host=postgres;Database=marketdata;Username=postgres;Password=${POSTGRES_PASSWORD}
+      Aggregator__Sources__0__Id: alpha
+      Aggregator__Sources__0__Url: ws://exchange-alpha:8080/ws
+      Aggregator__Sources__0__Format: Alpha
+      Aggregator__Sources__1__Id: beta
+      Aggregator__Sources__1__Url: ws://exchange-beta:8080/ws
+      Aggregator__Sources__1__Format: Beta
+      Aggregator__Sources__2__Id: gamma
+      Aggregator__Sources__2__Url: ws://exchange-gamma:8080/ws
+      Aggregator__Sources__2__Format: Gamma
+    ports:
+      - "5100:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      exchange-alpha:
+        condition: service_started
+      exchange-beta:
+        condition: service_started
+      exchange-gamma:
+        condition: service_started
+
+volumes:
+  pgdata:

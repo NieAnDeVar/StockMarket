@@ -39,7 +39,10 @@ public sealed class ClientSession : IAsyncDisposable
     public void Enqueue(string message)
     {
         if (!_outbox.Writer.TryWrite(message))
+        {
             Interlocked.Increment(ref _droppedForSlowClient);
+            SimulatorMetrics.DroppedForSlowClients.Inc();
+        }
     }
 
     public void Complete() => _outbox.Writer.TryComplete();
@@ -71,7 +74,7 @@ public sealed class ClientSession : IAsyncDisposable
                     }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
-                        // Application-level heartbeat: System.Net.WebSockets has no API for protocol ping frames 
+                        // Application-level heartbeat: System.Net.WebSockets has no API for protocol ping frames
                         // The aggregator recognizes it by "type" and resets its idle timer, skipping normalization
                         message = $$"""{"type":"heartbeat","ts":"{{DateTimeOffset.UtcNow:O}}"}""";
                     }
