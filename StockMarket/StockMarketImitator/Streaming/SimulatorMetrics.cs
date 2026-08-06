@@ -1,4 +1,4 @@
-﻿using Prometheus;
+using Prometheus;
 
 namespace StockMarketImitator.Streaming;
 

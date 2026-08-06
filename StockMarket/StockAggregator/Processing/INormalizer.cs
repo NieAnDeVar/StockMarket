@@ -1,4 +1,4 @@
-﻿using StockAggregator.Contracts;
+using StockAggregator.Contracts;
 namespace StockAggregator.Processing;
 
 public interface INormalizer

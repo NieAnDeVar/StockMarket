@@ -1,4 +1,4 @@
-﻿using StockMarketImitator.Quotes;
+using StockMarketImitator.Quotes;
 
 namespace StockMarketImitator.Tests;
 

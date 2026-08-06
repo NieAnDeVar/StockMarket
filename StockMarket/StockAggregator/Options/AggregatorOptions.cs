@@ -1,4 +1,4 @@
-﻿namespace StockAggregator.Options;
+namespace StockAggregator.Options;
 
 public sealed class AggregatorOptions
 {

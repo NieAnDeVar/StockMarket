@@ -1,4 +1,4 @@
-﻿namespace StockAggregator.Hosting;
+namespace StockAggregator.Hosting;
 
 // Runs several workers as one hosted service. Completes the shared channel only
 // after ALL of them stopped — a single dying source must not close it for others.

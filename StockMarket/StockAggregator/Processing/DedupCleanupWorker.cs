@@ -1,4 +1,4 @@
-﻿namespace StockAggregator.Processing;
+namespace StockAggregator.Processing;
 
 public sealed class DedupCleanupWorker(
     Deduplicator dedup,

@@ -1,4 +1,4 @@
-﻿using StockMarketImitator.Chaos;
+using StockMarketImitator.Chaos;
 
 namespace StockMarketImitator.Tests;
 

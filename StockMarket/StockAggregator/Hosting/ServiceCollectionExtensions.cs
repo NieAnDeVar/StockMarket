@@ -1,4 +1,4 @@
-﻿using System.Threading.Channels;
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using StockAggregator.Connectors;
 using StockAggregator.Contracts;
