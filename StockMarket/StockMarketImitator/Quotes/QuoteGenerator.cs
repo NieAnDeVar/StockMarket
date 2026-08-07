@@ -1,6 +1,6 @@
 namespace StockMarketImitator.Quotes;
 
-// Called only from BroadcastEngine (single thread) no synchronization by design.
+// Called only from BroadcastEngine (single thread), no synchronization by design.
 public sealed class QuoteGenerator
 {
     private readonly string[] _tickers;

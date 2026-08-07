@@ -38,7 +38,7 @@ public sealed class PostgresTickRepository(string connectionString, ILogger<Post
         await using var tx = await conn.BeginTransactionAsync(ct);
 
         // COPY has no ON CONFLICT: bulk-load into a temp table, then insert-select
-        // with conflict handling — speed of COPY + idempotency, one transaction.
+        // with conflict handling. Speed of COPY plus idempotency, one transaction.
         await using (var create = new NpgsqlCommand(
             "CREATE TEMP TABLE IF NOT EXISTS temp_ticks (LIKE ticks INCLUDING DEFAULTS) ON COMMIT DROP",
             conn, tx))
@@ -60,8 +60,11 @@ public sealed class PostgresTickRepository(string connectionString, ILogger<Post
             await importer.CompleteAsync(ct);
         }
 
+        // Explicit column list: SELECT * follows column order and would silently
+        // break on the first ALTER TABLE ticks ADD COLUMN.
         await using var insert = new NpgsqlCommand(
-            "INSERT INTO ticks SELECT * FROM temp_ticks ON CONFLICT DO NOTHING", conn, tx);
+            "INSERT INTO ticks (source, seq, ticker, ts, price, volume) "
+            + "SELECT source, seq, ticker, ts, price, volume FROM temp_ticks ON CONFLICT DO NOTHING", conn, tx);
         var inserted = await insert.ExecuteNonQueryAsync(ct);
 
         await tx.CommitAsync(ct);

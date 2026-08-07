@@ -8,7 +8,7 @@ namespace StockAggregator.Storage;
 public sealed class TickBatchWriter(
     ChannelReader<NormalizedTick> reader,
     ITickRepository repository,
-    DatabaseInitializer dbReady,
+    IDatabaseReadiness dbReady,
     AggregatorOptions options,
     ILogger<TickBatchWriter> logger) : BackgroundService
 {
@@ -23,7 +23,7 @@ public sealed class TickBatchWriter(
             while (true)
             {
                 // The time window starts with the FIRST item of a batch and is not
-                // refreshed by subsequent reads — otherwise a slow but steady stream
+                // refreshed by subsequent reads, otherwise a slow but steady stream
                 // would postpone the flush forever.
                 using var window = new CancellationTokenSource(options.BatchMaxDelayMs);
 
@@ -33,7 +33,7 @@ public sealed class TickBatchWriter(
                     if (batch.Count >= options.BatchSize) // size trigger
                         await FlushAsync(batch);
                 }
-                catch (OperationCanceledException) // window expired — time trigger
+                catch (OperationCanceledException) // window expired, time trigger
                 {
                     if (batch.Count > 0)
                         await FlushAsync(batch);

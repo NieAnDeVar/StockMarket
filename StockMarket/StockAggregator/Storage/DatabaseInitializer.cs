@@ -3,9 +3,9 @@ using Npgsql;
 namespace StockAggregator.Storage;
 
 // Applies schema on startup with retries (DB may still be booting in compose)
-// and signals readiness — writers wait for it instead of failing first batches.
+// and signals readiness: writers wait for it instead of failing first batches.
 public sealed class DatabaseInitializer(string connectionString, ILogger<DatabaseInitializer> logger)
-    : BackgroundService
+    : BackgroundService, IDatabaseReadiness
 {
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Ready => _ready.Task;
@@ -46,6 +46,7 @@ public sealed class DatabaseInitializer(string connectionString, ILogger<Databas
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // permanent auth/config errors will spam this log — check credentials if it never recovers
                 logger.LogWarning(ex, "database not ready, retrying in 2s");
                 await Task.Delay(2000, stoppingToken);
             }

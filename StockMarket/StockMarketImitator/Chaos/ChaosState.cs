@@ -2,8 +2,8 @@ namespace StockMarketImitator.Chaos;
 
 public sealed class ChaosState
 {
-    // double can't be volatile and Interlocked.Read has no double overload
-    // writes go through Exchange, reads through CompareExchange both are atomic.
+    // double can't be volatile, so writes go through Interlocked.Exchange and
+    // reads through CompareExchange(ref, 0, 0): both are atomic for 64-bit values.
     private double _duplicatesRate;
 
     // volatile: written from HTTP threads, read by the engine thread

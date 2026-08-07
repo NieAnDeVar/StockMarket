@@ -6,8 +6,8 @@ namespace StockMarketImitator.Streaming;
 
 /// <summary>
 /// One connected client: own bounded channel and a single send loop.
-/// Ticks and heartbeats go through RunAsync only — WebSocket forbids
-/// concurrent SendAsync, and we satisfy that by construction, without locks.
+/// Ticks and heartbeats go through RunAsync only, because WebSocket forbids
+/// concurrent SendAsync. One loop means no locks.
 /// </summary>
 public sealed class ClientSession : IAsyncDisposable
 {

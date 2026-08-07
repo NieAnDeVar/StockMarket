@@ -13,7 +13,7 @@ var app = builder.Build();
 app.UseWebSockets();
 app.MapSimulatorEndpoints();
 
-// Swagger оставляем включённым всегда: это наша "админка" для chaos-эндпоинтов.
+// Swagger stays enabled: it is the admin UI for the chaos endpoints.
 app.UseSwagger();
 app.UseSwaggerUI();
 

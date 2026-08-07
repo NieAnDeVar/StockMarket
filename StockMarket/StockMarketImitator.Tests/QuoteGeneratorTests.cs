@@ -40,7 +40,7 @@ public class QuoteGeneratorTests
             .Select(q => q.Price)
             .ToArray();
 
-        // соседние цены одного тикера отличаются не более чем на ~0.1% + округление
+        // consecutive prices of one ticker differ by at most ~0.1% plus rounding
         for (var i = 1; i < prices.Length; i++)
             Assert.True(Math.Abs(prices[i] - prices[i - 1]) <= prices[i - 1] * 0.002m + 0.01m);
     }

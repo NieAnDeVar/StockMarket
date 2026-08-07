@@ -17,28 +17,25 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(AggregatorOptions.SectionName))
             .ValidateDataAnnotations()
             .Validate(o => o.Sources.Count > 0, "at least one source is required")
+            .Validate(o => o.Sources.All(s => Uri.IsWellFormedUriString(s.Url, UriKind.Absolute)),
+                "every source needs an absolute ws:// url")
             .ValidateOnStart();
 
-        // lets services take AggregatorOptions directly instead of the IOptions<> wrapper
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<AggregatorOptions>>().Value);
 
-        // Both channels are registered three ways — channel, reader, writer — all pointing
-        // at the same instance. Creating channels separately for reader/writer would wire
-        // producers and consumers to different channels and stall the pipeline silently.
+        // one channel instance exposed as channel / reader / writer
         services.AddSingleton(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
             return Channel.CreateBounded<IncomingTick>(new BoundedChannelOptions(opt.ChannelCapacity)
             {
-                FullMode = BoundedChannelFullMode.Wait, // backpressure: slow consumer throttles the sockets
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true
             });
         });
         services.AddSingleton(sp => sp.GetRequiredService<Channel<IncomingTick>>().Reader);
         services.AddSingleton(sp => sp.GetRequiredService<Channel<IncomingTick>>().Writer);
 
-        // Bounded like the raw one: a slow DB must push back through the whole pipeline,
-        // not inflate memory in the middle of it.
         services.AddSingleton(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
@@ -51,8 +48,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(sp => sp.GetRequiredService<Channel<NormalizedTick>>().Reader);
         services.AddSingleton(sp => sp.GetRequiredService<Channel<NormalizedTick>>().Writer);
 
-        // Primitives in a constructor (TimeSpan, string) are not services —
-        // such types are registered via factory, values come from options.
         services.AddSingleton(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
@@ -67,8 +62,7 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<ILogger<PostgresTickRepository>>());
         });
 
-        // One instance serves both as the hosted migration runner and as the
-        // readiness gate (dbReady.Ready) for the batch writer.
+        // also implements IDatabaseReadiness for the batch writer
         services.AddSingleton(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
@@ -77,10 +71,17 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<ILogger<DatabaseInitializer>>());
         });
         services.AddHostedService(sp => sp.GetRequiredService<DatabaseInitializer>());
+        services.AddSingleton<IDatabaseReadiness>(sp => sp.GetRequiredService<DatabaseInitializer>());
 
-        // Connectors are the only stage listening to the host cancellation token.
-        // When ALL of them are down, the raw channel completes and the drain chain
-        // unwinds downstream on its own — processing finishes, then the batch writer flushes.
+        // LIFO shutdown: connectors registered last → stop first
+        services.AddHostedService<MetricsWorker>();
+        services.AddHostedService(sp => new DedupCleanupWorker(
+            sp.GetRequiredService<Deduplicator>(),
+            sp.GetRequiredService<ILogger<DedupCleanupWorker>>()));
+        services.AddHostedService<TickBatchWriter>();
+        services.AddHostedService<ProcessingWorker>();
+
+        // only stage that observes host cancellation; onAllStopped completes the raw channel
         services.AddHostedService(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
@@ -88,21 +89,10 @@ public static class ServiceCollectionExtensions
             var writer = sp.GetRequiredService<ChannelWriter<IncomingTick>>();
             var connectors = opt.Sources.Select(s =>
                 (IHostedService)new ExchangeConnectorWorker(
-                    s,
-                    writer,
-                    opt,
-                    loggerFactory.CreateLogger<ExchangeConnectorWorker>()));
+                    s, writer, opt,
+                    loggerFactory.CreateLogger<ExchangeConnectorWorker>())).ToArray();
             return new CompositeHostedService(connectors, onAllStopped: () => writer.Complete());
         });
-
-        services.AddHostedService<ProcessingWorker>();
-        services.AddHostedService<TickBatchWriter>();
-
-        services.AddHostedService(sp => new DedupCleanupWorker(
-            sp.GetRequiredService<Deduplicator>(),
-            sp.GetRequiredService<ILogger<DedupCleanupWorker>>()));
-
-        services.AddHostedService<MetricsWorker>();
 
         return services;
     }

@@ -1,0 +1,68 @@
+{
+  "title": "StockMarket: pipeline health",
+  "uid": "stockmarket-pipeline",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "2s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Ticks received /s (by source)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [ { "expr": "sum by (source) (rate(aggregator_ticks_received_total[30s]))", "legendFormat": "{{source}}", "refId": "A" } ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Rows written /s vs dropped",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "rate(aggregator_ticks_written_total[30s])", "legendFormat": "written", "refId": "A" },
+        { "expr": "rate(aggregator_ticks_dropped_total[30s])", "legendFormat": "dropped (must be 0)", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Feed lag p50 / p95 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(aggregator_feed_lag_ms_bucket[1m])) by (le))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(aggregator_feed_lag_ms_bucket[1m])) by (le))", "legendFormat": "p95", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Channel occupancy (backpressure)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [ { "expr": "aggregator_channel_occupancy", "legendFormat": "{{stage}}", "refId": "A" } ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 5, "type": "stat", "title": "Sources up",
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 8 },
+      "targets": [ { "expr": "aggregator_source_up", "legendFormat": "{{source}}", "refId": "A" } ],
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ] }, "overrides": [] },
+      "options": { "colorMode": "background", "textMode": "value_and_name" }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Reconnects (rate /5m)",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "targets": [ { "expr": "sum by (source) (increase(aggregator_reconnects_total[5m]))", "legendFormat": "{{source}}", "refId": "A" } ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Dedup: filtered /s and window size",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "targets": [
+        { "expr": "rate(aggregator_ticks_deduplicated_total[30s])", "legendFormat": "duplicates filtered /s", "refId": "A" },
+        { "expr": "aggregator_dedup_cache_size", "legendFormat": "keys in window", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    }
+  ]
+}

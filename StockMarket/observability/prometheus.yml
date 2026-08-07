@@ -1,0 +1,10 @@
+scrape_configs:
+  - job_name: aggregator
+    scrape_interval: 2s
+    static_configs:
+      - targets: ["aggregator:8080"]
+
+  - job_name: imitators
+    scrape_interval: 2s
+    static_configs:
+      - targets: ["exchange-alpha:8080", "exchange-beta:8080", "exchange-gamma:8080"]

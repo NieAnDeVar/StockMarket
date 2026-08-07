@@ -8,8 +8,7 @@ using StockAggregator.Options;
 namespace StockAggregator.Connectors;
 
 /// <summary>
-/// One worker per source: connect → stream → on any failure reconnect with backoff.
-/// Sources are fully isolated: this worker knows nothing about the others.
+/// One worker per source. Fully isolated: failure of one does not affect others.
 /// </summary>
 public sealed class ExchangeConnectorWorker(
     SourceOptions source,
@@ -27,8 +26,9 @@ public sealed class ExchangeConnectorWorker(
             try
             {
                 await ConnectAndStreamAsync(stoppingToken);
-                attempt = 0; // server closed politely — reconnect without penalty
-                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken); // but not instantly
+                attempt = 0;
+                // short pause after clean close to avoid tight reconnect loop
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -52,11 +52,11 @@ public sealed class ExchangeConnectorWorker(
         logger.LogInformation("source {Source} connector stopped", source.Id);
     }
 
-    // Full jitter: random(0, min(30s, 1s * 2^n)) — reconnects of several sources
-    // don't pile up on a restarting server at the same moments.
+    // full jitter, cap 30s
     private static TimeSpan Backoff(int attempt)
     {
-        var cap = Math.Min(30_000, 1000 * Math.Pow(2, attempt - 1));
+        var exp = Math.Min(attempt - 1, 15);
+        var cap = Math.Min(30_000, 1000L << exp);
         return TimeSpan.FromMilliseconds(Random.Shared.NextDouble() * cap);
     }
 
@@ -71,15 +71,13 @@ public sealed class ExchangeConnectorWorker(
         }
 
         logger.LogInformation("source {Source} connected", source.Id);
-
         AggregatorMetrics.SourceUp.WithLabels(source.Id).Set(1);
 
         var buffer = new byte[8 * 1024];
 
         while (socket.State == WebSocketState.Open)
         {
-            // Idle detection: silence on the wire == dead connection.
-            // A half-open TCP reports nothing, so waiting forever is not an option.
+            // half-open TCP stays silent; idle timeout is the only reliable detection
             using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
             idle.CancelAfter(TimeSpan.FromSeconds(options.IdleTimeoutSec));
 
@@ -90,23 +88,21 @@ public sealed class ExchangeConnectorWorker(
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                AggregatorMetrics.SourceUp.WithLabels(source.Id).Set(0);
-                AggregatorMetrics.Reconnects.WithLabels(source.Id).Inc();
                 throw new WebSocketException($"idle timeout: no data for {options.IdleTimeoutSec}s");
             }
 
-            if (raw is null) return; // server sent Close frame — reconnect
+            if (raw is null) return; // Close frame
 
             await writer.WriteAsync(
                 new IncomingTick(source.Id, raw, DateTimeOffset.UtcNow), ct);
         }
     }
 
-    // A WS message may arrive fragmented — read until EndOfMessage.
+    // reassemble fragmented WS messages
     private static async Task<string?> ReceiveMessageAsync(
         ClientWebSocket socket, byte[] buffer, CancellationToken ct)
     {
-        using var ms = new MemoryStream();
+        using var ms = new MemoryStream(buffer.Length);
 
         while (true)
         {

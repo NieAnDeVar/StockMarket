@@ -2,7 +2,7 @@ using Prometheus;
 
 namespace StockMarketImitator.Streaming;
 
-// prometheus-net идиоматично использует статические метрики — реестр один на процесс.
+// prometheus-net uses static metrics idiomatically: one registry per process.
 public static class SimulatorMetrics
 {
     public static readonly Counter TicksSent = Metrics.CreateCounter(

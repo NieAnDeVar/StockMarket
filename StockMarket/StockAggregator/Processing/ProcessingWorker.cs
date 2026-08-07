@@ -22,8 +22,6 @@ public sealed class ProcessingWorker : BackgroundService
         _normalizedWriter = normalizedWriter;
         _dedup = dedup;
 
-        // SourceId -> normalizer, built once from config.
-        // New exchange = new INormalizer + one config entry. Nothing here changes.
         _normalizers = options.Sources.ToDictionary(
             s => s.Id,
             s => (INormalizer)(s.Format switch
@@ -37,9 +35,7 @@ public sealed class ProcessingWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // No stoppingToken in the read loop on purpose: this stage ends when
-        // connectors Complete the channel, not when the host fires cancellation.
-        // Otherwise the middle of the pipeline would die before the head — losing the tail.
+        // ends on channel completion, not host token (otherwise middle dies before head)
         await foreach (var incoming in _reader.ReadAllAsync())
         {
             AggregatorMetrics.TicksReceived.WithLabels(incoming.SourceId).Inc();
@@ -66,7 +62,6 @@ public sealed class ProcessingWorker : BackgroundService
             await _normalizedWriter.WriteAsync(tick);
         }
 
-        // Raw input ended -> close the next stage so the batch writer drains and flushes.
         _normalizedWriter.Complete();
     }
 }

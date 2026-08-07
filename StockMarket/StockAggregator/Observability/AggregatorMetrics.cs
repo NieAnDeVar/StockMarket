@@ -2,7 +2,7 @@ using Prometheus;
 
 namespace StockAggregator.Observability;
 
-// Labels carry source only (3 values). Ticker would explode cardinality — never.
+// Labels carry source only (3 values); a ticker label would explode cardinality.
 public static class AggregatorMetrics
 {
     public static readonly Counter TicksReceived = Metrics.CreateCounter(
@@ -18,10 +18,10 @@ public static class AggregatorMetrics
         "aggregator_ticks_written_total", "Rows inserted into the DB");
 
     public static readonly Counter TicksDropped = Metrics.CreateCounter(
-        "aggregator_ticks_dropped_total", "Ticks lost after exhausted DB retries — must be 0 in steady state");
+        "aggregator_ticks_dropped_total", "Ticks lost after exhausted DB retries, must be 0 in steady state");
 
     public static readonly Counter DbDuplicatesSkipped = Metrics.CreateCounter(
-        "aggregator_db_duplicates_skipped_total", "Rows skipped by DB ON CONFLICT — the safety net catching what memory missed");
+        "aggregator_db_duplicates_skipped_total", "Rows skipped by DB ON CONFLICT, the safety net catching what memory missed");
 
     public static readonly Counter ParseErrors = Metrics.CreateCounter(
         "aggregator_parse_errors_total", "Unparseable messages", "source");
@@ -33,7 +33,7 @@ public static class AggregatorMetrics
         "aggregator_source_up", "1 = connected, 0 = disconnected", "source");
 
     public static readonly Gauge ChannelOccupancy = Metrics.CreateGauge(
-        "aggregator_channel_occupancy", "Channel fill — the backpressure indicator", "stage");
+        "aggregator_channel_occupancy", "Channel fill, the backpressure indicator", "stage");
 
     public static readonly Gauge DedupCacheSize = Metrics.CreateGauge(
         "aggregator_dedup_cache_size", "Keys in the dedup window");

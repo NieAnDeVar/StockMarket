@@ -6,7 +6,8 @@ namespace StockAggregator.Processing;
 
 public static class StreamMessage
 {
-    // Cheap pre-check before parsing: heartbeat carries no tick
+    // substring check is a pragmatic shortcut; real protocol would use a typed message.
+    // false-positive risk is low with the fixed ticker list used by the imitators.
     public static bool IsHeartbeat(string raw) => raw.Contains("\"heartbeat\"");
 }
 
@@ -64,7 +65,7 @@ public sealed class BetaNormalizer : INormalizer
 
 public sealed class GammaNormalizer : INormalizer
 {
-    // ["AAPL",187.3,100,1754302530,1042] — positional, unix seconds
+    // ["AAPL",187.3,100,1754302530,1042] positional, unix seconds
     public bool TryNormalize(string raw, string sourceId, out NormalizedTick tick)
     {
         tick = default!;

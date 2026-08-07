@@ -13,12 +13,17 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
+  <!-- Kestrel for the in-process test exchange servers -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StockMarketImitator\StockMarketImitator.csproj" />
+    <ProjectReference Include="..\StockAggregator\StockAggregator.csproj" />
   </ItemGroup>
 
 </Project>
