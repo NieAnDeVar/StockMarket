@@ -23,6 +23,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<AggregatorOptions>>().Value);
 
+        // One implementation per exchange format. Adding a new exchange =
+        // new format = new INormalizer class + one DI line + SourceOptions entry
+        services.AddSingleton<INormalizer, AlphaNormalizer>();
+        services.AddSingleton<INormalizer, BetaNormalizer>();
+        services.AddSingleton<INormalizer, GammaNormalizer>();
+
         // one channel instance exposed as channel / reader / writer
         services.AddSingleton(sp =>
         {

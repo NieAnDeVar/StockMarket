@@ -4,6 +4,9 @@ namespace StockAggregator.Storage;
 
 // Applies schema on startup with retries (DB may still be booting in compose)
 // and signals readiness: writers wait for it instead of failing first batches.
+//
+// Production note: this is a single inline SQL script for the test assignment.
+// For a growing schema replace with a real migrator (FluentMigrator / DbUp / EF migrations).
 public sealed class DatabaseInitializer(string connectionString, ILogger<DatabaseInitializer> logger)
     : BackgroundService, IDatabaseReadiness
 {

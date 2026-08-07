@@ -4,15 +4,10 @@ using StockAggregator.Contracts;
 
 namespace StockAggregator.Processing;
 
-public static class StreamMessage
-{
-    // substring check is a pragmatic shortcut; real protocol would use a typed message.
-    // false-positive risk is low with the fixed ticker list used by the imitators.
-    public static bool IsHeartbeat(string raw) => raw.Contains("\"heartbeat\"");
-}
-
 public sealed class AlphaNormalizer : INormalizer
 {
+    public string Format => "Alpha";
+
     // {"symbol":"AAPL","price":187.3,"qty":100,"ts":"...Z","seq":1042}
     public bool TryNormalize(string raw, string sourceId, out NormalizedTick tick)
     {
@@ -36,6 +31,8 @@ public sealed class AlphaNormalizer : INormalizer
 
 public sealed class BetaNormalizer : INormalizer
 {
+    public string Format => "Beta";
+
     // {"s":"AAPL","p":"187.30","v":100,"t":1754302530123,"n":1042}
     public bool TryNormalize(string raw, string sourceId, out NormalizedTick tick)
     {
@@ -65,6 +62,8 @@ public sealed class BetaNormalizer : INormalizer
 
 public sealed class GammaNormalizer : INormalizer
 {
+    public string Format => "Gamma";
+
     // ["AAPL",187.3,100,1754302530,1042] positional, unix seconds
     public bool TryNormalize(string raw, string sourceId, out NormalizedTick tick)
     {

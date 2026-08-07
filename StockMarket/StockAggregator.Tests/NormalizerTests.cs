@@ -108,8 +108,15 @@ public sealed class NormalizerTests
     [Fact]
     public void Heartbeat_IsDetectedBeforeParsing()
     {
-        Assert.True(StreamMessage.IsHeartbeat("{\"type\":\"heartbeat\",\"ts\":\"2026-01-01T00:00:00Z\"}"));
+        Assert.True(StreamMessage.IsHeartbeat("""{"type":"heartbeat","ts":"2026-01-01T00:00:00Z"}"""));
+        Assert.True(StreamMessage.IsHeartbeat("""{"type":"Heartbeat","ts":"2026-01-01T00:00:00Z"}""")); // case-insensitive
         Assert.False(StreamMessage.IsHeartbeat(
-            "{\"symbol\":\"AAPL\",\"price\":187.3,\"qty\":100,\"ts\":\"2026-01-05T12:30:00Z\",\"seq\":1042}"));
+            """{"symbol":"AAPL","price":187.3,"qty":100,"ts":"2026-01-05T12:30:00Z","seq":1042}"""));
+        // A well-formed tick must never be mistaken for a heartbeat even if a field
+        // value contains the word (typed "type" property is required).
+        Assert.False(StreamMessage.IsHeartbeat(
+            """{"symbol":"HEARTBEAT","price":1,"qty":1,"ts":"2026-01-05T12:30:00Z","seq":1}"""));
+        Assert.False(StreamMessage.IsHeartbeat("not json at all"));
+        Assert.False(StreamMessage.IsHeartbeat(""));
     }
 }

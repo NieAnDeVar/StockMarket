@@ -65,7 +65,7 @@ public sealed class TickBatchWriter(
         {
             // Never silent: every lost tick is counted and logged.
             AggregatorMetrics.TicksDropped.Inc(batch.Count);
-            logger.LogError(ex, "batch of {Count} ticks dropped after retries", batch.Count);
+            logger.LogError(ex, "batch of {Count} ticks dropped (DB write failed after retries or permanent error)", batch.Count);
         }
         finally
         {

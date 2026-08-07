@@ -16,21 +16,28 @@ public sealed class ProcessingWorker : BackgroundService
         ChannelReader<IncomingTick> reader,
         ChannelWriter<NormalizedTick> normalizedWriter,
         Deduplicator dedup,
-        AggregatorOptions options)
+        AggregatorOptions options,
+        IEnumerable<INormalizer> normalizers)
     {
         _reader = reader;
         _normalizedWriter = normalizedWriter;
         _dedup = dedup;
 
+        var byFormat = normalizers.ToDictionary(
+            n => n.Format,
+            n => n,
+            StringComparer.OrdinalIgnoreCase);
+
         _normalizers = options.Sources.ToDictionary(
             s => s.Id,
-            s => (INormalizer)(s.Format switch
+            s =>
             {
-                "Alpha" => new AlphaNormalizer(),
-                "Beta" => new BetaNormalizer(),
-                "Gamma" => new GammaNormalizer(),
-                var f => throw new InvalidOperationException($"Unknown format '{f}' for source '{s.Id}'")
-            }));
+                if (!byFormat.TryGetValue(s.Format, out var n))
+                    throw new InvalidOperationException(
+                        $"No INormalizer registered for format '{s.Format}' (source '{s.Id}'). " +
+                        "Register a new implementation and add it in DI.");
+                return n;
+            });
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

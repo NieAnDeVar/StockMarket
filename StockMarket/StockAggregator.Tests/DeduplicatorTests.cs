@@ -82,4 +82,76 @@ public sealed class DeduplicatorTests
         // same seq range from 3 sources, all must pass: key is (source, seq)
         Assert.Equal(sources.Length * perSource, accepted);
     }
+
+    // Sliding-window: a large batch of expired entries is drained from the queue
+    // without touching still-valid keys. Count must match remaining live entries.
+    [Fact]
+    public void LargeExpiredBatch_IsEvictedWithoutTouchingRecent()
+    {
+        var dedup = new Deduplicator(TimeSpan.FromSeconds(60));
+        var old = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var recent = DateTimeOffset.UtcNow;
+
+        const int expired = 20_000;
+        const int live = 5_000;
+
+        for (var i = 0; i < expired; i++)
+            Assert.True(dedup.IsNew(Tick("alpha", i, old)));
+
+        for (var i = 0; i < live; i++)
+            Assert.True(dedup.IsNew(Tick("beta", i, recent)));
+
+        Assert.Equal(expired + live, dedup.Count);
+
+        var removed = dedup.EvictOlderThan(DateTimeOffset.UtcNow.AddMinutes(-5));
+
+        Assert.Equal(expired, removed);
+        Assert.Equal(live, dedup.Count);
+
+        // recent keys still protected
+        Assert.False(dedup.IsNew(Tick("beta", 0, recent)));
+        // expired keys can be re-accepted
+        Assert.True(dedup.IsNew(Tick("alpha", 0, old)));
+    }
+
+    // Concurrent writers + concurrent eviction must keep the invariant:
+    // every unique (source, seq) is accepted at most once; Count stays consistent.
+    [Fact]
+    public async Task ConcurrentAddAndEvict_PreservesUniqueness()
+    {
+        var dedup = new Deduplicator(TimeSpan.FromSeconds(30));
+        const int uniques = 30_000;
+        var accepted = 0;
+        using var cts = new CancellationTokenSource();
+
+        // Background eviction hammer (nothing is actually expired yet)
+        var evictor = Task.Run(async () =>
+        {
+            while (!cts.Token.IsCancellationRequested)
+            {
+                dedup.EvictOlderThan(DateTimeOffset.UtcNow.AddSeconds(-60));
+                try { await Task.Delay(1, cts.Token); }
+                catch (OperationCanceledException) { break; }
+            }
+        }, cts.Token);
+
+        try
+        {
+            Parallel.For(0, uniques * 2, i =>
+            {
+                var seq = (i * 7919L) % uniques;
+                if (dedup.IsNew(Tick("alpha", seq)))
+                    Interlocked.Increment(ref accepted);
+            });
+        }
+        finally
+        {
+            cts.Cancel();
+            try { await evictor; }
+            catch (OperationCanceledException) { /* expected */ }
+        }
+
+        Assert.Equal(uniques, accepted);
+        Assert.Equal(uniques, dedup.Count);
+    }
 }
