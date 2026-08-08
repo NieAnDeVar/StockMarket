@@ -16,6 +16,7 @@ public sealed class AlphaNormalizer : INormalizer
         {
             using var doc = JsonDocument.Parse(raw);
             var r = doc.RootElement;
+            if (r.GetProperty("symbol").ValueKind != JsonValueKind.String) return false;
             tick = new NormalizedTick(
                 sourceId,
                 r.GetProperty("seq").GetInt64(),
@@ -46,6 +47,7 @@ public sealed class BetaNormalizer : INormalizer
             if (!decimal.TryParse(r.GetProperty("p").GetString(),
                     NumberStyles.Number, CultureInfo.InvariantCulture, out var price))
                 return false;
+            if (r.GetProperty("s").ValueKind != JsonValueKind.String) return false;
 
             tick = new NormalizedTick(
                 sourceId,
@@ -74,6 +76,7 @@ public sealed class GammaNormalizer : INormalizer
             var a = doc.RootElement;
             if (a.ValueKind != JsonValueKind.Array || a.GetArrayLength() != 5)
                 return false;
+            if (a[0].ValueKind != JsonValueKind.String) return false;
 
             tick = new NormalizedTick(
                 sourceId,

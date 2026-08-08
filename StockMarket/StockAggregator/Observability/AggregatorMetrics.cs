@@ -23,6 +23,9 @@ public static class AggregatorMetrics
     public static readonly Counter DbDuplicatesSkipped = Metrics.CreateCounter(
         "aggregator_db_duplicates_skipped_total", "Rows skipped by DB ON CONFLICT, the safety net catching what memory missed");
 
+    public static readonly Counter TicksMissed = Metrics.CreateCounter(
+        "aggregator_ticks_missed_total", "Ticks that never arrived, detected by per-source seq gaps (reconnect window)", "source");
+
     public static readonly Counter ParseErrors = Metrics.CreateCounter(
         "aggregator_parse_errors_total", "Unparseable messages", "source");
 

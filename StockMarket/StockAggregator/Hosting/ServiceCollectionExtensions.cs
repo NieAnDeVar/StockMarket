@@ -60,6 +60,11 @@ public static class ServiceCollectionExtensions
             return new Deduplicator(TimeSpan.FromSeconds(opt.DedupWindowSec));
         });
 
+        // live state for readiness, independent of the metrics exporter
+        services.AddSingleton<SourceStateTracker>();
+        services.AddSingleton<SeqGapTracker>();
+        services.AddSingleton<DbWriteTracker>();
+
         services.AddSingleton<ITickRepository>(sp =>
         {
             var opt = sp.GetRequiredService<AggregatorOptions>();
@@ -79,7 +84,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(sp => sp.GetRequiredService<DatabaseInitializer>());
         services.AddSingleton<IDatabaseReadiness>(sp => sp.GetRequiredService<DatabaseInitializer>());
 
-        // LIFO shutdown: connectors registered last → stop first
+        // LIFO shutdown: connectors registered last stop first
         services.AddHostedService<MetricsWorker>();
         services.AddHostedService(sp => new DedupCleanupWorker(
             sp.GetRequiredService<Deduplicator>(),
@@ -93,9 +98,10 @@ public static class ServiceCollectionExtensions
             var opt = sp.GetRequiredService<AggregatorOptions>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var writer = sp.GetRequiredService<ChannelWriter<IncomingTick>>();
+            var states = sp.GetRequiredService<SourceStateTracker>();
             var connectors = opt.Sources.Select(s =>
                 (IHostedService)new ExchangeConnectorWorker(
-                    s, writer, opt,
+                    s, writer, opt, states,
                     loggerFactory.CreateLogger<ExchangeConnectorWorker>())).ToArray();
             return new CompositeHostedService(connectors, onAllStopped: () => writer.Complete());
         });

@@ -11,7 +11,7 @@ public sealed class AggregatorOptions
     [Range(1, 1_000_000)]
     public int ChannelCapacity { get; set; } = 20_000;
 
-    // Every knob below gets a floor: 0 or negative would fail later and weirdly
+    // Floors on every knob: 0 or negative would fail later and weirdly
     // (CTS(0) fires instantly, a negative timeout throws far from the cause).
     [Range(1, 300)]
     public int ConnectTimeoutSec { get; set; } = 10;

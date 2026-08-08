@@ -19,7 +19,7 @@ public static class EndpointExtensions
             }
 
             using var socket = await ctx.WebSockets.AcceptWebSocketAsync();
-            var session = sessions.Create(socket);
+            await using var session = sessions.Create(socket);
 
             registry.Add(session);
             try

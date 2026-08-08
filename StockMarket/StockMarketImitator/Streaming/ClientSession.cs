@@ -5,12 +5,13 @@ using System.Threading.Channels;
 namespace StockMarketImitator.Streaming;
 
 /// <summary>
-/// One connected client: own bounded channel and a single send loop.
-/// Ticks and heartbeats go through RunAsync only, because WebSocket forbids
-/// concurrent SendAsync. One loop means no locks.
+/// One connected client: own bounded channel, single send loop
+/// (WebSocket forbids concurrent SendAsync, one loop means no locks).
 /// </summary>
 public sealed class ClientSession : IAsyncDisposable
 {
+    private const int OutboxCapacity = 1000;
+
     private readonly WebSocket _socket;
     private readonly Channel<string> _outbox;
     private readonly TimeSpan _heartbeatInterval;
@@ -24,9 +25,8 @@ public sealed class ClientSession : IAsyncDisposable
         _socket = socket;
         _heartbeatInterval = heartbeatInterval;
 
-        // A slow client must not stall others: on overflow the oldest ticks are
-        // dropped (like a real exchange does) and the loss is counted.
-        _outbox = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: 1000)
+        // A slow client must not stall others: overflow drops the oldest ticks, the loss is counted.
+        _outbox = Channel.CreateBounded<string>(new BoundedChannelOptions(OutboxCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
@@ -38,11 +38,12 @@ public sealed class ClientSession : IAsyncDisposable
 
     public void Enqueue(string message)
     {
-        if (!_outbox.Writer.TryWrite(message))
+        if (_outbox.Reader.Count >= OutboxCapacity)
         {
             Interlocked.Increment(ref _droppedForSlowClient);
             SimulatorMetrics.DroppedForSlowClients.Inc();
         }
+        _outbox.Writer.TryWrite(message);
     }
 
     public void Complete() => _outbox.Writer.TryComplete();
@@ -74,8 +75,7 @@ public sealed class ClientSession : IAsyncDisposable
                     }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
-                        // Application-level heartbeat: System.Net.WebSockets has no API for protocol ping frames
-                        // The aggregator recognizes it by "type" and resets its idle timer, skipping normalization
+                        // application-level heartbeat: System.Net.WebSockets has no protocol ping API
                         message = $$"""{"type":"heartbeat","ts":"{{DateTimeOffset.UtcNow:O}}"}""";
                     }
                 }

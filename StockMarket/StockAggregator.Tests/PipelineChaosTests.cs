@@ -52,9 +52,9 @@ public sealed class PipelineChaosTests
         };
 
         var connector = new ExchangeConnectorWorker(options.Sources[0], raw.Writer, options,
-            NullLogger<ExchangeConnectorWorker>.Instance);
+            new SourceStateTracker(), NullLogger<ExchangeConnectorWorker>.Instance);
         var processing = new ProcessingWorker(raw.Reader, normalized.Writer,
-            new Deduplicator(TimeSpan.FromSeconds(60)), options,
+            new Deduplicator(TimeSpan.FromSeconds(60)), new SeqGapTracker(), options,
             [new AlphaNormalizer()]);
 
         await connector.StartAsync(CancellationToken.None);

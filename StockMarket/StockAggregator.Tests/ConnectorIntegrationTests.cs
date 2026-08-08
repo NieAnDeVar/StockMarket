@@ -23,7 +23,7 @@ public sealed class ConnectorIntegrationTests
     {
         var source = new SourceOptions { Id = id, Url = wsUrl, Format = "Alpha" };
         var worker = new ExchangeConnectorWorker(source, writer, options,
-            NullLogger<ExchangeConnectorWorker>.Instance);
+            new SourceStateTracker(), NullLogger<ExchangeConnectorWorker>.Instance);
         worker.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         return worker;
     }

@@ -1,5 +1,6 @@
 services:
   exchange-alpha:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: StockMarketImitator/Dockerfile
@@ -10,6 +11,7 @@ services:
       - "5001:8080"
 
   exchange-beta:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: StockMarketImitator/Dockerfile
@@ -20,6 +22,7 @@ services:
       - "5002:8080"
 
   exchange-gamma:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: StockMarketImitator/Dockerfile
@@ -30,6 +33,7 @@ services:
       - "5003:8080"
 
   postgres:
+    restart: unless-stopped
     image: postgres:17
     environment:
       POSTGRES_DB: marketdata
@@ -46,6 +50,7 @@ services:
       retries: 10
 
   aggregator:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: StockAggregator/Dockerfile
@@ -73,6 +78,7 @@ services:
         condition: service_started
 
   prometheus:
+    restart: unless-stopped
     image: prom/prometheus:v3.4.1
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -80,6 +86,7 @@ services:
       - "9090:9090"
 
   grafana:
+    restart: unless-stopped
     image: grafana/grafana:12.0.0
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"

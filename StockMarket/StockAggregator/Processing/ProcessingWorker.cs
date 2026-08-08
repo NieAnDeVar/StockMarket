@@ -10,18 +10,21 @@ public sealed class ProcessingWorker : BackgroundService
     private readonly ChannelReader<IncomingTick> _reader;
     private readonly ChannelWriter<NormalizedTick> _normalizedWriter;
     private readonly Deduplicator _dedup;
+    private readonly SeqGapTracker _gapTracker;
     private readonly Dictionary<string, INormalizer> _normalizers;
 
     public ProcessingWorker(
         ChannelReader<IncomingTick> reader,
         ChannelWriter<NormalizedTick> normalizedWriter,
         Deduplicator dedup,
+        SeqGapTracker gapTracker,
         AggregatorOptions options,
         IEnumerable<INormalizer> normalizers)
     {
         _reader = reader;
         _normalizedWriter = normalizedWriter;
         _dedup = dedup;
+        _gapTracker = gapTracker;
 
         var byFormat = normalizers.ToDictionary(
             n => n.Format,
@@ -58,6 +61,10 @@ public sealed class ProcessingWorker : BackgroundService
 
             AggregatorMetrics.FeedLag.Observe(
                 (incoming.ReceivedAtUtc - tick.TimestampUtc).TotalMilliseconds);
+
+            var missed = _gapTracker.Observe(incoming.SourceId, tick.SourceSeq);
+            if (missed > 0)
+                AggregatorMetrics.TicksMissed.WithLabels(incoming.SourceId).Inc(missed);
 
             if (!_dedup.IsNew(tick))
             {

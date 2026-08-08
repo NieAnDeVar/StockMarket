@@ -5,12 +5,12 @@ namespace StockAggregator.Processing;
 public static class StreamMessage
 {
     /// <summary>
-    /// Application-level heartbeat: JSON object with <c>"type":"heartbeat"</c> (case-insensitive).
-    /// Fast-path rejects ordinary ticks without parsing; full parse only when "type" is present.
+    /// Heartbeat = JSON object with <c>"type":"heartbeat"</c> (case-insensitive).
+    /// Full parse only runs when a "type" property is present at all.
     /// </summary>
     public static bool IsHeartbeat(string raw)
     {
-        // Ordinary ticks never contain a "type" property — skip the parser entirely.
+        // ordinary ticks have no "type" property, skip the parser entirely
         if (string.IsNullOrEmpty(raw) || !raw.Contains("\"type\"", StringComparison.Ordinal))
             return false;
 

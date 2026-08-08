@@ -9,6 +9,7 @@ public sealed class TickBatchWriter(
     ChannelReader<NormalizedTick> reader,
     ITickRepository repository,
     IDatabaseReadiness dbReady,
+    DbWriteTracker writeTracker,
     AggregatorOptions options,
     ILogger<TickBatchWriter> logger) : BackgroundService
 {
@@ -22,21 +23,20 @@ public sealed class TickBatchWriter(
         {
             while (true)
             {
-                // The time window starts with the FIRST item of a batch and is not
-                // refreshed by subsequent reads, otherwise a slow but steady stream
-                // would postpone the flush forever.
+                // The window starts with the FIRST item and is not refreshed,
+                // otherwise a slow but steady stream would postpone the flush forever.
+                batch.Add(await reader.ReadAsync(CancellationToken.None));
                 using var window = new CancellationTokenSource(options.BatchMaxDelayMs);
 
                 try
                 {
-                    batch.Add(await reader.ReadAsync(window.Token));
-                    if (batch.Count >= options.BatchSize) // size trigger
-                        await FlushAsync(batch);
+                    while (batch.Count < options.BatchSize)
+                        batch.Add(await reader.ReadAsync(window.Token));
+                    await FlushAsync(batch);
                 }
-                catch (OperationCanceledException) // window expired, time trigger
+                catch (OperationCanceledException) // window expired
                 {
-                    if (batch.Count > 0)
-                        await FlushAsync(batch);
+                    await FlushAsync(batch);
                 }
             }
         }
@@ -57,6 +57,7 @@ public sealed class TickBatchWriter(
         try
         {
             var inserted = await repository.SaveBatchAsync(batch, CancellationToken.None);
+            writeTracker.ReportSuccess();
             AggregatorMetrics.TicksWritten.Inc(inserted);
             // inserted < count => PK conflicts skipped by the DB safety net
             AggregatorMetrics.DbDuplicatesSkipped.Inc(batch.Count - inserted);
@@ -64,6 +65,7 @@ public sealed class TickBatchWriter(
         catch (Exception ex)
         {
             // Never silent: every lost tick is counted and logged.
+            writeTracker.ReportFailure();
             AggregatorMetrics.TicksDropped.Inc(batch.Count);
             logger.LogError(ex, "batch of {Count} ticks dropped (DB write failed after retries or permanent error)", batch.Count);
         }

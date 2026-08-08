@@ -1,7 +1,6 @@
 namespace StockAggregator.Storage;
 
-// Readiness gate for writers: the batch writer waits for the schema instead of
-// failing its first batches while the DB is still booting.
+// Readiness gate: the batch writer waits for the schema instead of failing first batches.
 public interface IDatabaseReadiness
 {
     Task Ready { get; }

@@ -9,16 +9,20 @@
     {
       "id": 1, "type": "timeseries", "title": "Ticks received /s (by source)",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-      "targets": [ { "expr": "sum by (source) (rate(aggregator_ticks_received_total[30s]))", "legendFormat": "{{source}}", "refId": "A" } ],
+      "targets": [
+        { "expr": "sum by (source) (rate(aggregator_ticks_received_total[30s]))", "legendFormat": "{{source}}", "refId": "A" },
+        { "expr": "sum(rate(aggregator_ticks_received_total[30s]))", "legendFormat": "total", "refId": "B" }
+      ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
     },
     {
-      "id": 2, "type": "timeseries", "title": "Rows written /s vs dropped",
+      "id": 2, "type": "timeseries", "title": "Rows written /s vs dropped vs db-dups",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "targets": [
-        { "expr": "rate(aggregator_ticks_written_total[30s])", "legendFormat": "written", "refId": "A" },
-        { "expr": "rate(aggregator_ticks_dropped_total[30s])", "legendFormat": "dropped (must be 0)", "refId": "B" }
+        { "expr": "rate(aggregator_ticks_written_total[30s])", "legendFormat": "written (new rows)", "refId": "A" },
+        { "expr": "rate(aggregator_ticks_dropped_total[30s])", "legendFormat": "dropped (must be 0)", "refId": "B" },
+        { "expr": "rate(aggregator_db_duplicates_skipped_total[30s])", "legendFormat": "db dups (PK skip)", "refId": "C" }
       ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
@@ -34,7 +38,7 @@
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
     },
     {
-      "id": 4, "type": "timeseries", "title": "Channel occupancy (backpressure)",
+      "id": 4, "type": "timeseries", "title": "Channel occupancy (max per interval)",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [ { "expr": "aggregator_channel_occupancy", "legendFormat": "{{stage}}", "refId": "A" } ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
@@ -50,7 +54,7 @@
     {
       "id": 6, "type": "timeseries", "title": "Reconnects (rate /5m)",
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
-      "targets": [ { "expr": "sum by (source) (increase(aggregator_reconnects_total[5m]))", "legendFormat": "{{source}}", "refId": "A" } ],
+      "targets": [ { "expr": "round(sum by (source) (increase(aggregator_reconnects_total[5m])))", "legendFormat": "{{source}}", "refId": "A" } ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
     },
@@ -61,6 +65,13 @@
         { "expr": "rate(aggregator_ticks_deduplicated_total[30s])", "legendFormat": "duplicates filtered /s", "refId": "A" },
         { "expr": "aggregator_dedup_cache_size", "legendFormat": "keys in window", "refId": "B" }
       ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Ticks missed /5m (seq gaps, by source)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "targets": [ { "expr": "round(sum by (source) (increase(aggregator_ticks_missed_total[5m])))", "legendFormat": "{{source}}", "refId": "A" } ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
     }

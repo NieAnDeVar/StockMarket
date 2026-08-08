@@ -51,4 +51,49 @@ public sealed class CompositeHostedServiceTests
 
         Assert.Equal(3, stopsWhenFired);
     }
+
+    // A worker whose StopAsync returns while ExecuteTask is still running.
+    // .NET 9+ makes this the normal case: ExecuteAsync is scheduled Task.Run
+    // and the host does not wait for it before reporting stopped.
+    private sealed class SlowToFinishWorker : BackgroundService
+    {
+        private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Entered => _entered.Task;
+        public int Exited;
+
+        public void Release() => _release.TrySetResult();
+
+        public override Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            _entered.TrySetResult();
+            await _release.Task;
+            Exited++;
+        }
+    }
+
+    [Fact]
+    public async Task StopAsync_WaitsForExecuteTaskEvenWhenWorkerStopReturned()
+    {
+        var worker = new SlowToFinishWorker();
+        var exitedWhenFired = -1;
+        var composite = new CompositeHostedService(new IHostedService[] { worker },
+            () => exitedWhenFired = worker.Exited);
+
+        await composite.StartAsync(CancellationToken.None);
+        await worker.Entered.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var stopTask = composite.StopAsync(CancellationToken.None);
+        await Task.Delay(200);
+        Assert.False(stopTask.IsCompleted); // ExecuteTask still blocked, composite must wait
+
+        worker.Release();
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, worker.Exited);
+        Assert.Equal(1, exitedWhenFired); // drain signal fired only after ExecuteTask finished
+    }
 }

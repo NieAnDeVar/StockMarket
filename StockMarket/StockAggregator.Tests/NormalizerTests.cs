@@ -86,6 +86,22 @@ public sealed class NormalizerTests
         Assert.False(new GammaNormalizer().TryNormalize(raw, "gamma", out _));
     }
 
+    [Theory]
+    [InlineData("alpha", "{\"symbol\":null,\"price\":187.3,\"qty\":100,\"ts\":\"2026-01-05T12:30:00Z\",\"seq\":1042}")]
+    [InlineData("beta", "{\"s\":null,\"p\":\"187.30\",\"v\":100,\"t\":1754302530123,\"n\":7}")]
+    [InlineData("gamma", "[null,187.3,100,1754302530,1042]")]
+    public void NullTicker_IsRejectedNotNormalized(string format, string raw)
+    {
+        var normalizer = format switch
+        {
+            "alpha" => (INormalizer)new AlphaNormalizer(),
+            "beta" => new BetaNormalizer(),
+            _ => new GammaNormalizer()
+        };
+
+        Assert.False(normalizer.TryNormalize(raw, format, out _));
+    }
+
     [Fact]
     public void Garbage_NeverThrows()
     {

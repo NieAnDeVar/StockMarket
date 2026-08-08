@@ -17,6 +17,6 @@ app.MapSimulatorEndpoints();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.MapMetrics(); // prometheus-net: /metrics
+app.MapMetrics();
 
 app.Run();

@@ -14,6 +14,7 @@ public sealed class ExchangeConnectorWorker(
     SourceOptions source,
     ChannelWriter<IncomingTick> writer,
     AggregatorOptions options,
+    SourceStateTracker states,
     ILogger<ExchangeConnectorWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -23,10 +24,12 @@ public sealed class ExchangeConnectorWorker(
         while (!stoppingToken.IsCancellationRequested)
         {
             AggregatorMetrics.SourceUp.WithLabels(source.Id).Set(0);
+            states.Set(source.Id, up: false);
             try
             {
                 await ConnectAndStreamAsync(stoppingToken);
                 attempt = 0;
+                AggregatorMetrics.Reconnects.WithLabels(source.Id).Inc();
                 // short pause after clean close to avoid tight reconnect loop
                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
@@ -49,6 +52,7 @@ public sealed class ExchangeConnectorWorker(
         }
 
         AggregatorMetrics.SourceUp.WithLabels(source.Id).Set(0);
+        states.Set(source.Id, up: false);
         logger.LogInformation("source {Source} connector stopped", source.Id);
     }
 
@@ -72,6 +76,7 @@ public sealed class ExchangeConnectorWorker(
 
         logger.LogInformation("source {Source} connected", source.Id);
         AggregatorMetrics.SourceUp.WithLabels(source.Id).Set(1);
+        states.Set(source.Id, up: true);
 
         var buffer = new byte[8 * 1024];
 

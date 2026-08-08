@@ -3,10 +3,8 @@ using Npgsql;
 namespace StockAggregator.Storage;
 
 // Applies schema on startup with retries (DB may still be booting in compose)
-// and signals readiness: writers wait for it instead of failing first batches.
-//
-// Production note: this is a single inline SQL script for the test assignment.
-// For a growing schema replace with a real migrator (FluentMigrator / DbUp / EF migrations).
+// and signals readiness to writers. Single inline script by design:
+// a growing schema needs a real migrator (DbUp / FluentMigrator / EF).
 public sealed class DatabaseInitializer(string connectionString, ILogger<DatabaseInitializer> logger)
     : BackgroundService, IDatabaseReadiness
 {
@@ -34,6 +32,8 @@ public sealed class DatabaseInitializer(string connectionString, ILogger<Databas
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var failures = 0;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -49,8 +49,15 @@ public sealed class DatabaseInitializer(string connectionString, ILogger<Databas
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // permanent auth/config errors will spam this log — check credentials if it never recovers
-                logger.LogWarning(ex, "database not ready, retrying in 2s");
+                failures++;
+                // ~1 minute of failures deserves an error, not another warning:
+                // a permanent auth/config problem never recovers by itself
+                if (failures % 30 == 0)
+                    logger.LogError(ex,
+                        "database not ready after {Failures} attempts; check credentials and connection string",
+                        failures);
+                else
+                    logger.LogWarning(ex, "database not ready, retrying in 2s");
                 await Task.Delay(2000, stoppingToken);
             }
         }
